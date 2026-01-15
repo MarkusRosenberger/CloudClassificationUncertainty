@@ -8,4 +8,11 @@ And experiment 3 compares observations of five volunteer meteorologists based on
 
 ***
 
+Complementing data can be found on Zenodo and cited using: 
+
+Rosenberger, M. (2026). Data supporting paper "Uncertainty of SYNOP cloud classifications by human observers" (v1.0.0) [Data set]. Zenodo. https://doi.org/10.5281/zenodo.18257027
+
+
+***
+
 For further questions, please do not hesitate to contact the corresponding author: markus.rosenberger@univie.ac.at
