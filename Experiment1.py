@@ -17,7 +17,6 @@ df.time = pd.to_datetime(df.time.values, dayfirst = 'True')
 
 '''
 Only use time steps with enough daylight to observe clouds properly
-
 Never use images before 04UTC and after 20UTC.
 
 Between 15.05. until 04.08. (incl.) 19UTC can be used.
