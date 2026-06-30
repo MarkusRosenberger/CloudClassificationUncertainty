@@ -11,58 +11,17 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+import classification_analysis as ana
 
 # for the Sankey Diagramm
 import plotly.graph_objects as go
 
 
-def onehot_encoder(CL, CM, CH):
-    '''
-
-    One-hot encoding of cloud observation arrays. 
-
-    Parameters
-    ----------
-    CL : 1d-array, shape == (n_instances,)
-        Cloud classes observed in the low level, always observed
-    CM : 1d-array, shape == (n_instances,)
-        Cloud classes observed in the low level, NaN if not observed
-    CH : 1d-array, shape == (n_instances,)
-        Cloud classes observed in the low level, NaN if not observed
-
-    Returns
-    -------
-    2d-array, shape = (n_instances, 30)
-        One-hot encoded version of observations in every layer. For each instance 30 values 
-        representing 30 WMO SYNOP cloud classes. Value is 1 if this class was observed, 0 otherwise.
-    '''
-    # split observations into 3 altitude levels
-    obs = np.zeros(shape = (len(CL), 3))
-    obs[:,0] = CL # low
-    obs[:,1] = CM # middle
-    obs[:,2] = CH # high
-    
-    # low between 0 and 9
-    # middle between 10 and 19
-    # high between 20 and 29
-    obs += np.array([0,10,20])
-
-    ground_truth = np.zeros(shape = (len(CL), 30))
-
-    for index, i in enumerate(obs):
-        for c in i:
-            if np.isfinite(c): 
-                ground_truth[index, int(c)] += 1 # if no NaN, i.e. if observation in altitude level
-            else: 
-                pass # otherwise
-
-    return ground_truth
-
 # get data from csv file
 df = pd.read_csv('Experiment2_simultaneous_WHWTUVIE.csv', index_col = 0)
 
 '''
-Fig. 5
+Fig. 6
 '''
 
 S1 = 'WHW'
@@ -80,8 +39,8 @@ df_2stations = df_2stations[(df_2stations[S1 + '_CL'] < 10) & (df_2stations[S2 +
 # result is array with length 30 for each timestep and station
 # each entry is one SYNOP class
 
-S1_onehot = onehot_encoder(df_2stations[S1 + '_CL'].values, df_2stations[S1 + '_CM'].values, df_2stations[S1 + '_CH'].values)
-S2_onehot = onehot_encoder(df_2stations[S2 + '_CL'].values, df_2stations[S2 + '_CM'].values, df_2stations[S2 + '_CH'].values)
+S1_onehot = ana.onehot_encoder(df_2stations[S1 + '_CL'].values, df_2stations[S1 + '_CM'].values, df_2stations[S1 + '_CH'].values)
+S2_onehot = ana.onehot_encoder(df_2stations[S2 + '_CL'].values, df_2stations[S2 + '_CM'].values, df_2stations[S2 + '_CH'].values)
 
 # how many classes have been reported at each timestep
 S1_n_reported_classes = S1_onehot.sum(axis = 1)
@@ -228,7 +187,7 @@ fig.write_image('SankeyDiagram.png', width=1000, height=550)
 fig.show()
 
 '''
-Fig. 6
+Fig. 7
 '''
 # start with initial dataframe and only keep times where each station 
 # reported at least a low cloud, i.e. an observation was in principle possible
@@ -236,9 +195,9 @@ Fig. 6
 df = df[(df['WHW_CL'] < 10) & (df['TU_CL'] < 10) & (df['VIE_CL'] < 10)] 
 
 # one-hot encoding of single altitude levels as above
-WHW_obs = onehot_encoder(df['WHW_CL'].values, df['WHW_CM'].values, df['WHW_CH'].values)
-TU_obs = onehot_encoder(df['TU_CL'].values, df['TU_CM'].values, df['TU_CH'].values)
-VIE_obs = onehot_encoder(df['VIE_CL'].values, df['VIE_CM'].values, df['VIE_CH'].values)
+WHW_obs = ana.onehot_encoder(df['WHW_CL'].values, df['WHW_CM'].values, df['WHW_CH'].values)
+TU_obs = ana.onehot_encoder(df['TU_CL'].values, df['TU_CM'].values, df['TU_CH'].values)
+VIE_obs = ana.onehot_encoder(df['VIE_CL'].values, df['VIE_CM'].values, df['VIE_CH'].values)
 
 # number of observations of each class
 WHW_obs_per_class = np.sum(WHW_obs, axis = 0)
@@ -324,3 +283,38 @@ ax_dummy.set_xlim(-4, 4)
 
 plt.savefig('BarPlot.png', bbox_inches = 'tight', dpi = 600)
 plt.show()
+
+'''
+Fig. 8
+'''
+
+'''
+Zeitpunkte, zu denen alle 3 Stationen gemeldet haben, wieder paarweise betrachten
+Wird wohl keine fundamentalen Unterschiede zeigen
+'''
+
+# start with initial dataframe and only keep times where each station 
+# reported at least a low cloud, i.e. an observation was in principle possible
+# 87,558 time steps - same data as for Fig. 7
+df = df[(df['WHW_CL'] < 10) & (df['TU_CL'] < 10) & (df['VIE_CL'] < 10)] 
+
+# one-hot encoding of single altitude levels as above
+WHW_obs = ana.onehot_encoder(df['WHW_CL'].values, df['WHW_CM'].values, df['WHW_CH'].values)
+TU_obs = ana.onehot_encoder(df['TU_CL'].values, df['TU_CM'].values, df['TU_CH'].values)
+VIE_obs = ana.onehot_encoder(df['VIE_CL'].values, df['VIE_CM'].values, df['VIE_CH'].values)
+
+# number of classes
+n_classes = 30
+
+# initiate output list
+MCC = []
+
+# pairwise combinations of the 3 stations
+for item in itertools.combinations([WHW_obs, TU_obs, VIE_obs], 2):
+    # split the pair
+    obs1, obs2 = item
+
+    # calculate multi-label confusion matrix according to Heydarian et al., 2022
+    MLCM = ana.calculate_MLCM(obs1, obs2, from_logits=False)
+    # calculate class-wise MCC 
+    MCC.append([ana.calculate_MCC(MLCM, index = i, do_bootstrap = False)['MCC'] for i in range(n_classes)])
